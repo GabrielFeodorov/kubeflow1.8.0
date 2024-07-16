@@ -54,7 +54,11 @@ resource "oci_containerengine_node_pool" "kubeflow_node_pool" {
 
   node_source_details {
     source_type = "IMAGE"
-    image_id    = element([for source in data.oci_containerengine_node_pool_option.np_option.sources : source.image_id if length(regexall("Oracle-Linux-${var.nodepool_image_version}-20[0-9]*.*-OKE-${substr(var.kubernetes_version, 1, -1)}", source.source_name)) > 0], 0)
+    image_id = element([
+      for source in data.oci_containerengine_node_pool_option.np_option.sources : source.image_id
+      if(
+        length(regexall("GPU", var.kubeflow_node_pool_shape)) > 0 ? length(regexall("Oracle-Linux-${var.nodepool_image_version}-Gen2-GPU-20[0-9]*.*-OKE-${substr(var.kubernetes_version, 1, -1)}", source.source_name)) > 0 :
+    length(regexall("Oracle-Linux-${var.nodepool_image_version}-20[0-9]*.*-OKE-${substr(var.kubernetes_version, 1, -1)}", source.source_name)) > 0)], 0)
   }
 
   initial_node_labels {

@@ -44,7 +44,7 @@ resource "random_string" "deploy_id" {
 data "oci_core_images" "oraclelinux7" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Oracle Linux"
-  operating_system_version = "7.9"
+  operating_system_version = "8"
   filter {
     name   = "display_name"
     values = ["^([a-zA-z]+)-([a-zA-z]+)-([\\.0-9]+)-([\\.0-9-]+)$"]
