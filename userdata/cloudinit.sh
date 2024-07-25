@@ -223,8 +223,6 @@ while [[ "$status" != "true" ]]; do
   fi
 done
 
-echo "FROM HERE PODS ARE RUNNING" >> $LOG_FILE
-echo "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
 
 cat <<EOF | tee /tmp/patchservice_lb.yaml
   spec:
