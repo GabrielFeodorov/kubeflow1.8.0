@@ -7,3 +7,7 @@ region = "us-ashburn-1"
 compartment_ocid = "ocid1.compartment.oc1."
 availability_domain_number = "1"
 ssh_public_key = "ssh-rsa AAA...H"
+
+nodepool_image_version   = "7.9"           
+kubeflow_node_pool_shape = "VM.Standard2.4"
+kubeflow_node_pool_size  = 3

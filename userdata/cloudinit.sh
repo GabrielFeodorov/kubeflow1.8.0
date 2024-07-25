@@ -162,9 +162,69 @@ else
   while ! kustomize build example | kubectl apply --kubeconfig /root/.kube/config -f - | tee -a $LOG_FILE; do echo 'Retrying to apply resources'; sleep 60; done 
 fi
 
+sleep 30
 
+# Check status for all pods
+all_pods_running() {
+  pods=$(kubectl --kubeconfig /root/.kube/config get pods --all-namespaces --no-headers)
+  all_running=true
+  echo "$pods" | while read -r namespace name ready status _; do
+    if [[ "$status" != "Running" ]]; then
+      all_running=false
+      break
+    fi
+  done
+  echo $all_running
+}
 
+# Check for Mount Volume error on failed pods
+check_mount_volume_errors() {
+  local name=$1
+  local namespace=$2
+  errors=$(kubectl --kubeconfig /root/.kube/config describe pod "$name" -n "$namespace" | grep "MountVolume.SetUp failed")
+  echo "$errors"
+}
 
+# Reaply the kubeflow deployment untill all pods are running
+status="NotRunning"
+while [[ "$status" != "true" ]]; do
+  echo "Checking pod statuses..."
+  pods=$(kubectl --kubeconfig /root/.kube/config get pods --all-namespaces --no-headers)
+  echo "$pods" | while read -r namespace name ready status _; do
+    if [[ "$status" != "Running" ]]; then
+      echo "Pod $name in namespace $namespace is not Running." >> $LOG_FILE
+      errors=$(check_mount_volume_errors "$name" "$namespace")
+      if [[ ! -z "$errors" ]]; then
+        echo "MountVolume.SetUp error found for pod $name. Re-applying resources..." >> $LOG_FILE
+        while ! kustomize build example | kubectl apply -f - | tee -a "$LOG_FILE"; do
+          echo 'Retrying to apply resources...'
+          sleep 60
+        done
+
+        # Recheck pod statuses after applying resources
+        echo "Rechecking pod statuses after applying resources..." >> $LOG_FILE
+        sleep 20
+        status=$(all_pods_running)
+        if [[ "$status" == "true" ]]; then
+          echo "All pods are now Running after reapplying resources." >> $LOG_FILE
+          break
+        fi
+      fi
+    fi
+  done
+  # Check if all pods are now Running
+  status=$(all_pods_running)
+  if [[ "$status" == "true" ]]; then
+    echo "All pods are now Running." >> $LOG_FILE
+    break
+  else
+    echo "Not all pods are Running. Waiting..."
+    sleep 10
+  fi
+done
+
+echo "FROM HERE PODS ARE RUNNING" >> $LOG_FILE
+echo "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
 
 cat <<EOF | tee /tmp/patchservice_lb.yaml
   spec:

@@ -31,7 +31,9 @@ resource "oci_containerengine_node_pool" "kubeflow_node_pool" {
   name               = var.kubeflow_node_pool_name
   node_shape         = var.kubeflow_node_pool_shape
   ssh_public_key     = var.ssh_public_key
-
+  node_metadata = var.nodepool_image_version > 7.9 ? {
+    user_data = data.template_cloudinit_config.config_ol8[0].rendered
+  } : null
   node_config_details {
     dynamic "placement_configs" {
       for_each = data.oci_identity_availability_domains.ads.availability_domains
