@@ -229,7 +229,7 @@ cat <<EOF | tee /tmp/patchservice_lb.yaml
     type: LoadBalancer
   metadata:
     annotations:
-      oci.oraclecloud.com/load-balancer-type: "nlb"
+      oci.oraclecloud.com/load-balancer-type: "lb"
 EOF
 
 for i in {1..3}; do

@@ -182,11 +182,8 @@ variable "tenancy_ocid" {
   default = ""
 }
 
-# variable "region" {
-#   default = "us-ashburn-1"
-# }
 variable "region" {
-  default = "eu-frankfurt-1"
+  default = "us-ashburn-1"
 }
 
 
