@@ -121,7 +121,7 @@ metadata:
   name: istio-system
 EOF
 
-kubectl apply -f /opt/kfsecure/istio_namespace.yaml
+kubectl --kubeconfig /root/.kube/config apply -f /opt/kfsecure/istio_namespace.yaml 
 
 sleep 20
 
@@ -166,7 +166,7 @@ openssl x509 -req     -in "${DOMAIN}.csr"     -CA rootCA.crt -CAkey rootCA.key  
 sleep 10
 
 for i in {1..5}; do
-  kubectl --kubeconfig /root/.kube/config create secret tls kubeflow-tls-cert --key=$DOMAIN.key --cert=$DOMAIN.crt -n istio-system
+  kubectl --kubeconfig /root/.kube/config create secret tls kubeflow-tls-cert --key=$DOMAIN.key --cert=$DOMAIN.crt -n istio-system |tee -a $LOG_FILE
   if kubectl --kubeconfig /root/.kube/config get secret kubeflow-tls-cert -n istio-system >/dev/null 2>&1; then
       echo "kubeflow-tls-cert secret created successfully" |tee -a $LOG_FILE
       break
