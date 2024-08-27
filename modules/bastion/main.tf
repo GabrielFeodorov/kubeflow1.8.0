@@ -42,5 +42,10 @@ resource "oci_core_instance" "bastion" {
     mount_target        = var.create_mount_target ? var.mount_target_id : "not_using"
     kustomize_version   = var.kustomize_version
     kubeflow_version    = var.kubeflow_version
+    load_balancer_ip    = var.reserved_public_ip
+    configure_oracle_auth = var.configure_oracle_auth
+    oci_domain = var.oci_domain
+    client_id = var.oci_client_id
+    client_secret = var.oci_client_secret
   }
 }

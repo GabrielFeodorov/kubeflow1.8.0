@@ -11,3 +11,9 @@ ssh_public_key = "ssh-rsa AAA...H"
 nodepool_image_version   = "7.9"           
 kubeflow_node_pool_shape = "VM.Standard2.4"
 kubeflow_node_pool_size  = 3
+
+reserved_public_ip                 = ""
+configure_oracle_auth              = true
+oci_domain                         = "https://idcs-xxxxxxxxxxxxxxxxxxxxxx.identity.oraclecloud.com"
+oci_client_id                      = ""
+oci_client_secret                  = ""

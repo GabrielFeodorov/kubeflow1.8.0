@@ -76,6 +76,11 @@ module "bastion" {
   mount_target_id                    = module.fss.mt_ocid
   kustomize_version                  = var.kustomize_version
   kubeflow_version                   = var.kubeflow_version
+  reserved_public_ip                 = var.reserved_public_ip
+  configure_oracle_auth              = var. configure_oracle_auth
+  oci_domain                         = var.oci_domain
+  oci_client_id                      = var.oci_client_id
+  oci_client_secret                  = var.oci_client_secret
 }
 
 

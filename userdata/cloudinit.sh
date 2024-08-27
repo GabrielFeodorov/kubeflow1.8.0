@@ -1,5 +1,5 @@
-#!/bin/bash
-#adding comments to make code readable
+# #!/bin/bash
+# #adding comments to make code readable
 
 set -o pipefail
 LOG_FILE="/var/log/OKE-kubeflow-initialize.log"
@@ -15,18 +15,23 @@ kubeflow_password=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.1
 mount_target_id=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/mount_target`
 kustomize_version=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/kustomize_version`
 kubeflow_branch=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/kubeflow_version`
+load_balancer_ip=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/load_balancer_ip`
+configure_oracle_auth=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/configure_oracle_auth`
+issuer=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/oci_domain`
+client_id=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/client_id`
+client_secret=`curl -s -H "Authorization: Bearer Oracle" -L http://169.254.169.254/opc/v1/instance/metadata/client_secret`
 
 
 country=`echo $region|awk -F'-' '{print $1}'`
 city=`echo $region|awk -F'-' '{print $2}'`
 
-
-
+# Define the variables
 
 EXECNAME="Kubectl & Git"
 
 log "->Install"
-# Get the latest kubectl and not use archaic ones that are in default repo
+
+
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
@@ -64,9 +69,6 @@ echo "export OCI_CLI_AUTH=instance_principal" >> /home/opc/.bashrc
 EXECNAME="Kubeconfig"
 log "->Generate"
 
-RET_CODE=1
-INDEX_NR=1
-SLEEP_TIME="10s"
 while [ ! -f /root/.kube/config ]
 do
     sleep 5
@@ -85,7 +87,7 @@ EXECNAME="Kustomize"
 log "->Fetch & deploy to /bin/"
 # Now that we have kubectl configured, let us download kustomize
 wget "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${kustomize_version}/kustomize_v${kustomize_version}_linux_amd64.tar.gz"
-tar -xzvf kustomize_v${kustomize_version}_linux_amd64.tar.gz 
+tar -xzvf kustomize_v${kustomize_version}_linux_amd64.tar.gz
 mv kustomize /bin/kustomize
 chmod +x /bin/kustomize
 
@@ -101,8 +103,133 @@ git clone -b v$kubeflow_branch https://github.com/kubeflow/manifests.git >> $LOG
 
 
 
-export kubeflow_password
+
+
+
+LBIP="$load_balancer_ip"
+DOMAIN="kubeflow.$load_balancer_ip.nip.io"
+
+
+# Create certificates
+mkdir -p /opt/kfsecure
+cd /opt/kfsecure
+
+cat <<EOF | tee /opt/kfsecure/istio_namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+EOF
+
+kubectl apply -f /opt/kfsecure/istio_namespace.yaml
+
+sleep 20
+
+openssl req -x509             -sha256 -days 356             -nodes             -newkey rsa:2048             -subj "/CN=${DOMAIN}/C=$country/L=$city"             -keyout rootCA.key -out rootCA.crt
+
+cat > csr.conf <<EOF
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+req_extensions = req_ext
+distinguished_name = dn
+[ dn ]
+C = $country
+ST = $city
+L = $city
+O = Kubeflow
+OU = Kubeflow
+CN = ${DOMAIN}
+[ req_ext ]
+subjectAltName = @alt_names
+[ alt_names ]
+DNS.1 = ${DOMAIN}
+IP.1 = ${LBIP}
+EOF
+
+openssl genrsa -out "${DOMAIN}.key" 2048
+openssl req -new -key "${DOMAIN}.key" -out "${DOMAIN}.csr" -config csr.conf
+
+cat > cert.conf <<EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = ${DOMAIN}
+IP.1 = ${LBIP}
+EOF
+
+openssl x509 -req     -in "${DOMAIN}.csr"     -CA rootCA.crt -CAkey rootCA.key     -CAcreateserial -out "${DOMAIN}.crt"     -days 365     -sha256 -extfile cert.conf
+
+sleep 10
+kubectl --kubeconfig /root/.kube/config create secret tls kubeflow-tls-cert --key=$DOMAIN.key --cert=$DOMAIN.crt -n istio-system
+
+
+
+
+cp /opt/kubeflow/manifests/common/dex/base/config-map.yaml /opt/kubeflow/manifests/common/dex/base/config-map.yaml.DEFAULT
+# Enable authentication through Oracle IDCS
+if [ "$configure_oracle_auth" != false ]; then
+  # Update the issuer line
+  sed -i "s|issuer:.*|issuer: https://${DOMAIN}/dex|g" /opt/kubeflow/manifests/common/dex/base/config-map.yaml
+
+  # Update the redirectURIs line 
+  sed -i "s|redirectURIs:.*|redirectURIs: [\"/authservice/oidc/callback\",\"https://${DOMAIN}/dex/callback\"]|g" /opt/kubeflow/manifests/common/dex/base/config-map.yaml
+
+  # Add Oracle connector
+  cat <<EOF >> /opt/kubeflow/manifests/common/dex/base/config-map.yaml
+
+    connectors:
+    - type: oidc
+      id: oracle
+      name: Oracle
+      config:
+        issuer: ${issuer}
+        clientID: ${client_id}
+        clientSecret: ${client_secret}
+        redirectURI: https://${DOMAIN}/dex/callback
+        getUserInfo: true
+        userNameKey: user_displayname
+        insecureSkipEmailVerified: true
+EOF
+
+  ###### Update OIDC Provider
+  sed -i "s|^OIDC_PROVIDER=.*|OIDC_PROVIDER=https://${DOMAIN}/dex|g" /opt/kubeflow/manifests/common/oidc-client/oidc-authservice/base/params.env
+
+  # Add CA_BUNDLE to OIDC
+  sed -i "/^OIDC_PROVIDER=.*/a\CA_BUNDLE=/cert/b64" /opt/kubeflow/manifests/common/oidc-client/oidc-authservice/base/params.env
+
+  ####### Modify StatefulSet
+  sed -i "/mountPath: \/var\/lib\/authservice/a\\
+          - name: ca-cert\\
+            readOnly: true\\
+            mountPath: /cert" /opt/kubeflow/manifests/common/oidc-client/oidc-authservice/base/statefulset.yaml
+
+  cat <<EOF >> /opt/kubeflow/manifests/common/oidc-client/oidc-authservice/base/statefulset.yaml
+
+        - name: ca-cert
+          secret:
+            secretName: kubeflow-tls-cert
+            items:
+              - key: tls.crt
+                path: b64
+            defaultMode: 511
+EOF
+
+  ## Enable Automatic Profiles for Dashboard
+  sed -i "s/^CD_REGISTRATION_FLOW=false/CD_REGISTRATION_FLOW=true/" /opt/kubeflow/manifests/apps/centraldashboard/upstream/base/params.env
+fi
+
+
+
+
+
+
+
 # Change the default Kubeflow Password
+export kubeflow_password
 pip3 install --upgrade pip
 pip3 install passlib
 pip3 install bcrypt
@@ -112,8 +239,7 @@ from passlib.hash import bcrypt
 kubeflow_password = os.getenv('kubeflow_password')
 print(bcrypt.using(rounds=12, ident='2y').hash(kubeflow_password))
 ")
-cp /opt/kubeflow/manifests/common/dex/base/config-map.yaml /opt/kubeflow/manifests/common/dex/base/config-map.yaml.DEFAULT
-cat /opt/kubeflow/manifests/common/dex/base/config-map.yaml.DEFAULT |sed "s|hash:.*|hash: $hashed_password|" >/opt/kubeflow/manifests/common/dex/base/config-map.yaml
+sed -i "s|hash:.*|hash: $hashed_password|" /opt/kubeflow/manifests/common/dex/base/config-map.yaml
 
 
 
@@ -133,7 +259,6 @@ parameters:
 EOF
 sleep 20
   kubectl --kubeconfig /root/.kube/config apply -f existing-fss-st-class.yaml 
-  #add echo here or log
   kubectl --kubeconfig /root/.kube/config patch storageclass oci-bv -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
   kubectl --kubeconfig /root/.kube/config patch storageclass existing-fss-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
   sed -i 's|chmod -R 777 /var/lib/authservice;|find /var/lib/authservice ! -name ".snapshot" -exec chmod 777 {} +;|' /opt/kubeflow/manifests/common/oidc-client/oidc-authservice/overlays/ibm-storage-config/statefulset.yaml
@@ -227,6 +352,7 @@ done
 cat <<EOF | tee /tmp/patchservice_lb.yaml
   spec:
     type: LoadBalancer
+    loadBalancerIP: $load_balancer_ip
   metadata:
     annotations:
       oci.oraclecloud.com/load-balancer-type: "lb"
@@ -245,53 +371,8 @@ kubectl --kubeconfig /root/.kube/config patch svc istio-ingressgateway -n istio-
 sleep 120
 
 
-LBIP=$(kubectl --kubeconfig /root/.kube/config get svc istio-ingressgateway -n istio-system -o=jsonpath="{.status.loadBalancer.ingress[0].ip}")
-DOMAIN="${LBIP}.nip.io"
 
-mkdir -p /opt/kfsecure
-cd /opt/kfsecure
-openssl req -x509             -sha256 -days 356             -nodes             -newkey rsa:2048             -subj "/CN=${DOMAIN}/C=$country/L=$city"             -keyout rootCA.key -out rootCA.crt
-
-cat > csr.conf <<EOF
-[ req ]
-default_bits = 2048
-prompt = no
-default_md = sha256
-req_extensions = req_ext
-distinguished_name = dn
-[ dn ]
-C = $country
-ST = $city
-L = $city
-O = Kubeflow
-OU = Kubeflow
-CN = ${DOMAIN}
-[ req_ext ]
-subjectAltName = @alt_names
-[ alt_names ]
-DNS.1 = ${DOMAIN}
-IP.1 = ${LBIP}
-EOF
-
-openssl genrsa -out "${DOMAIN}.key" 2048
-openssl req -new -key "${DOMAIN}.key" -out "${DOMAIN}.csr" -config csr.conf
-
-cat > cert.conf <<EOF
-authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = ${DOMAIN}
-IP.1 = ${LBIP}
-EOF
-
-openssl x509 -req     -in "${DOMAIN}.csr"     -CA rootCA.crt -CAkey rootCA.key     -CAcreateserial -out "${DOMAIN}.crt"     -days 365     -sha256 -extfile cert.conf
-
-kubectl --kubeconfig /root/.kube/config create secret tls kubeflow-tls-cert --key=$DOMAIN.key --cert=$DOMAIN.crt -n istio-system
-
-
-cat <<EOF | tee ./sslenableingress.yaml
+cat <<EOF | tee /opt/kfsecure/sslenableingress.yaml
 apiVersion: v1
 items:
 - apiVersion: networking.istio.io/v1beta1
@@ -327,7 +408,7 @@ metadata:
   selfLink: ""
 EOF
 
-kubectl --kubeconfig /root/.kube/config apply -f sslenableingress.yaml
+kubectl --kubeconfig /root/.kube/config apply -f /opt/kfsecure/sslenableingress.yaml
 
 
 echo "Load Balancer IP is ${LBIP}" |tee -a $LOG_FILE

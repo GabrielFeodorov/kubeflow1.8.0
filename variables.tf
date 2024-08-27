@@ -111,13 +111,6 @@ variable "kubeflow_node_pool_size" {
   default = 3
 }
 
-variable "kubeflow_namespace" {
-  default = "kubeflow"
-}
-
-variable "kube_label" {
-  default = "kubeflow"
-}
 
 variable "cluster_options_add_ons_is_kubernetes_dashboard_enabled" {
   default = "false"
@@ -134,7 +127,9 @@ variable "cluster_endpoint_config_is_public_ip_enabled" {
 variable "endpoint_subnet_id" {
   default = " "
 }
-
+# ---------------------------------------------------------------------------------------------------------------------
+# Kubeflow settings
+# ---------------------------------------------------------------------------------------------------------------------
 
 variable "kubeflow_password" {
   default = "Kubeflow54321"
@@ -146,11 +141,37 @@ variable "kubeflow_version" {
   default = "1.8.0"
 }
 
+
+variable "reserved_public_ip" {
+  default = ""
+}
+variable "configure_oracle_auth" {
+  default = false
+}
+variable "oci_domain" {
+  default = "https://idcs-xxxxxxxxxxxxxxxxxxxxxx.identity.oraclecloud.com"
+}
+variable "oci_client_id" {
+  default = ""
+}
+variable "oci_client_secret" {
+  default = ""
+}
+
+
+variable "kubeflow_namespace" {
+  default = "kubeflow"
+}
+
+variable "kube_label" {
+  default = "kubeflow"
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # File Storage System Settings
 # ---------------------------------------------------------------------------------------------------------------------
 variable "create_mount_target" {
-  default = "true"
+  default = "false"
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

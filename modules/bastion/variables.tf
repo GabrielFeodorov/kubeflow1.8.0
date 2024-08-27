@@ -22,3 +22,8 @@ variable "create_mount_target" {}
 variable "mount_target_id" {}
 variable "kustomize_version" {}
 variable "kubeflow_version" {}
+variable "reserved_public_ip" {}
+variable "configure_oracle_auth" {}
+variable "oci_domain" {}
+variable "oci_client_id" {}
+variable "oci_client_secret" {}
