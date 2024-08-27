@@ -164,7 +164,17 @@ EOF
 openssl x509 -req     -in "${DOMAIN}.csr"     -CA rootCA.crt -CAkey rootCA.key     -CAcreateserial -out "${DOMAIN}.crt"     -days 365     -sha256 -extfile cert.conf
 
 sleep 10
-kubectl --kubeconfig /root/.kube/config create secret tls kubeflow-tls-cert --key=$DOMAIN.key --cert=$DOMAIN.crt -n istio-system
+
+for i in {1..5}; do
+  kubectl --kubeconfig /root/.kube/config create secret tls kubeflow-tls-cert --key=$DOMAIN.key --cert=$DOMAIN.crt -n istio-system
+  if kubectl --kubeconfig /root/.kube/config get secret kubeflow-tls-cert -n istio-system >/dev/null 2>&1; then
+      echo "kubeflow-tls-cert secret created successfully" |tee -a $LOG_FILE
+      break
+  fi
+  echo "Attempt to create kubeflow-tls-cert secret failed. Retrying in 5 seconds..." |tee -a $LOG_FILE
+  sleep 5
+done
+
 
 
 
