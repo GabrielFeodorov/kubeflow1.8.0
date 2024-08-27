@@ -1,4 +1,4 @@
-# #!/bin/bash
+#!/bin/bash
 # #adding comments to make code readable
 
 set -o pipefail
