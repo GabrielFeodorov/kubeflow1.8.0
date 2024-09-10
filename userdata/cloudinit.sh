@@ -366,6 +366,9 @@ cat <<EOF | tee /tmp/patchservice_lb.yaml
   metadata:
     annotations:
       oci.oraclecloud.com/load-balancer-type: "lb"
+      service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+      service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+      service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
 EOF
 
 for i in {1..3}; do
