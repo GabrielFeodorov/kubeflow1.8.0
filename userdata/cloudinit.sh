@@ -196,7 +196,7 @@ if [ "$configure_oracle_auth" != false ]; then
       id: oracle
       name: Oracle
       config:
-        issuer: ${issuer}
+        issuer: ${issuer}/
         clientID: ${client_id}
         clientSecret: ${client_secret}
         redirectURI: https://${DOMAIN}/dex/callback

@@ -11,7 +11,7 @@ module "network" {
   vcn_dns_label    = var.vcn_dns_label
   service_port     = var.service_port
   custom_vcn       = [var.myVcn]
-  OKESubnet        = var.OKESubnet
+  privateSubnet        = var.OKESubnet
   edgeSubnet       = var.edgeSubnet
   FssSubnet        = var.FssSubnet
   myVcn            = var.myVcn
@@ -33,7 +33,7 @@ module "oke" {
   cluster_options_admission_controller_options_is_pod_security_policy_enabled = var.cluster_options_admission_controller_options_is_pod_security_policy_enabled
   nodepool_image_version                                                      = var.nodepool_image_version
   vcn_id                                                                      = var.useExistingVcn ? var.myVcn : module.network.vcn-id
-  subnet_id                                                                   = var.useExistingVcn ? var.OKESubnet : module.network.private-id
+  nodepool_subnet_id                                                          = var.useExistingVcn ? var.OKESubnet : module.network.private-id
   lb_subnet_id                                                                = module.network.edge-id
   ssh_public_key                                                              = var.ssh_provided_public_key
   cluster_endpoint_config_is_public_ip_enabled                                = var.cluster_endpoint_config_is_public_ip_enabled

@@ -1,7 +1,7 @@
 variable "tenancy_ocid" {}
 variable "compartment_ocid" {}
 variable "vcn_id" {}
-variable "subnet_id" {}
+variable "nodepool_subnet_id" {}
 variable "lb_subnet_id" {}
 variable "cluster_name" {}
 variable "kubernetes_version" {

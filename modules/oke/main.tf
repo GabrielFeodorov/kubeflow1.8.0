@@ -40,7 +40,7 @@ resource "oci_containerengine_node_pool" "kubeflow_node_pool" {
 
       content {
         availability_domain = placement_configs.value.name
-        subnet_id           = var.subnet_id
+        subnet_id           = var.nodepool_subnet_id
       }
     }
     size = var.kubeflow_node_pool_size

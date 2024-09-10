@@ -21,7 +21,7 @@ variable "edge_cidr" {}
 variable "private_cidr" {}
 variable "fss_cidr" {}
 variable "myVcn" {}
-variable "OKESubnet" {
+variable "privateSubnet" {
   default = " "
 }
 variable "edgeSubnet" {

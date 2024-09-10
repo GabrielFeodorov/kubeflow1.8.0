@@ -61,7 +61,7 @@ You will need the Application **Client ID** and **Client secret** and your **OCI
 - In the **Configure variables** page of the stack
 - Under **Kubeflow Configuration**
 - Check the box for **Configure authentication with Oracle IDCS**
-  - for **OCI Identity Domain URL** add your **OCI Domain URL** and don't forget to add / at the end. The format is **https://idcs-xxxxxxxxxxxxxxxxxxxxxx.identity.oraclecloud.com/**.
+  - for **OCI Identity Domain URL** add your **OCI Domain URL**. The format is **https://idcs-xxxxxxxxxxxxxxxxxxxxxx.identity.oraclecloud.com**.
   - for **OCI Integrated Application Client ID** add your **Client ID**.
   - for **OCI Integrated Application Client Secret** add your **Client secret**.
 

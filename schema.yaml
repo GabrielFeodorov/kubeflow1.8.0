@@ -184,12 +184,12 @@ variables:
   FssSubnet:
     type: oci:core:subnet:id
     title: "Mount Target Subnet"
-    description: "Select Subnet for Mount Target.  This is the subnet where the Mount Target for File System."
+    description: "Select Subnet for Mount Target."
     dependsOn:
       compartmentId: compartment_ocid
       vcnId: myVcn
     visible: useExistingVcn
-    required: true
+    required: false
 
   availability_domain:
     type: oci:identity:availabilitydomain:name
@@ -316,8 +316,8 @@ variables:
   oci_domain:
     type: string
     title: "OCI Identity Domain URL"
-    description: "This URL should be the issuer when accessing DomainUrl.well-known/openid-configuration. Don't forget to add / at the end."
-    default: "<https://idcs-xxxxxxxxxxxxxxxxxxxxxx.identity.oraclecloud.com>/"
+    description: ""
+    default: "<https://idcs-xxxxxxxxxxxxxxxxxxxxxx.identity.oraclecloud.com>"
     visible: configure_oracle_auth
     required: true
 
@@ -333,3 +333,9 @@ variables:
     visible: configure_oracle_auth
     required: true
 
+  region:
+    type: oci:identity:region:name
+    required: true
+    visible: true
+    title: Region
+    description: "Region where you want to deploy the resources defined by this stack."
